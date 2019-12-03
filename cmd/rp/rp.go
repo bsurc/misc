@@ -13,8 +13,10 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	flagAddr := flag.String("addr", "", "address to listen on")
 	flagProxy := flag.String("proxy", "", "address to proxy")
+	flagAcme := flag.Bool("acme", true, "use TLS")
 	flagAcmeDir := flag.String("acmedir", "/opt/acme", "let's encrypt cache")
 	flag.Parse()
 	host, err := os.Hostname()
@@ -30,15 +32,18 @@ func main() {
 		Addr:    *flagAddr,
 		Handler: proxy,
 	}
-	m := &autocert.Manager{
-		Cache:      autocert.DirCache(*flagAcmeDir),
-		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(host),
+	if *flagAcme {
+		m := &autocert.Manager{
+			Cache:      autocert.DirCache(*flagAcmeDir),
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(host),
+		}
+		go func() {
+			log.Fatal(http.ListenAndServe(":http", m.HTTPHandler(nil)))
+		}()
+		srv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
+		srv.TLSConfig.MinVersion = tls.VersionTLS12
+		log.Fatal(srv.ListenAndServeTLS("", ""))
 	}
-	go func() {
-		log.Fatal(http.ListenAndServe(":http", m.HTTPHandler(nil)))
-	}()
-	srv.TLSConfig = &tls.Config{GetCertificate: m.GetCertificate}
-	srv.TLSConfig.MinVersion = tls.VersionTLS12
-	log.Fatal(srv.ListenAndServeTLS("", ""))
+	log.Fatal(srv.ListenAndServe())
 }
