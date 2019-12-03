@@ -18,10 +18,15 @@ func main() {
 	flagProxy := flag.String("proxy", "", "address to proxy")
 	flagAcme := flag.Bool("acme", true, "use TLS")
 	flagAcmeDir := flag.String("acmedir", "/opt/acme", "let's encrypt cache")
+	flagHost := flag.String("host", "", "hostname for tls")
 	flag.Parse()
-	host, err := os.Hostname()
-	if err != nil {
-		log.Fatal(err)
+	host := *flagHost
+	var err error
+	if host == "" {
+		host, err = os.Hostname()
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	u, err := url.Parse(*flagProxy)
 	if err != nil {
@@ -36,7 +41,7 @@ func main() {
 		m := &autocert.Manager{
 			Cache:      autocert.DirCache(*flagAcmeDir),
 			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(host),
+			HostPolicy: autocert.HostWhitelist(*flagHost),
 		}
 		go func() {
 			log.Fatal(http.ListenAndServe(":http", m.HTTPHandler(nil)))
