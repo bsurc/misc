@@ -19,6 +19,7 @@ func main() {
 	flagAcme := flag.Bool("acme", true, "use TLS")
 	flagAcmeDir := flag.String("acmedir", "/opt/acme", "let's encrypt cache")
 	flagHost := flag.String("host", "", "hostname for tls")
+	flagEmail := flag.String("email", "", "contact for let's encrypt")
 	flag.Parse()
 	host := *flagHost
 	var err error
@@ -42,6 +43,9 @@ func main() {
 			Cache:      autocert.DirCache(*flagAcmeDir),
 			Prompt:     autocert.AcceptTOS,
 			HostPolicy: autocert.HostWhitelist(*flagHost),
+		}
+		if *flagEmail != "" {
+			m.Email = *flagEmail
 		}
 		go func() {
 			log.Fatal(http.ListenAndServe(":http", m.HTTPHandler(nil)))
