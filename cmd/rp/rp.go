@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
+	"strings"
 
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -41,11 +41,11 @@ func setTLS(c *tls.Config) {
 	//c.PreferServerCipherSuites = false // client chooses
 	c.CipherSuites = []uint16{
 		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
 		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+		tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+		tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 	}
 }
 
@@ -55,19 +55,16 @@ func main() {
 	flagProxy := flag.String("proxy", "", "address to proxy")
 	flagAcme := flag.Bool("acme", true, "use TLS")
 	flagAcmeDir := flag.String("acmedir", "/opt/acme", "let's encrypt cache")
-	flagHost := flag.String("host", "", "hostname for tls")
+	flagHosts := flag.String("host", "", "comma separated hostnames for tls")
 	flagKey := flag.String("key", "", "tls private key")
 	flagCert := flag.String("cert", "", "tls certificate")
 	flagEmail := flag.String("email", "", "contact for let's encrypt")
 	flag.Parse()
-	host := *flagHost
 	var err error
-	if host == "" {
-		host, err = os.Hostname()
-		if err != nil {
-			log.Fatal(err)
-		}
+	if *flagHosts == "" {
+		log.Fatal("provide at least one hostname")
 	}
+	hosts := strings.Split(*flagHosts, ",")
 	if *flagAddr == "" {
 		log.Fatal("provide an address flag")
 	}
@@ -88,7 +85,7 @@ func main() {
 		m := &autocert.Manager{
 			Cache:      autocert.DirCache(*flagAcmeDir),
 			Prompt:     autocert.AcceptTOS,
-			HostPolicy: autocert.HostWhitelist(*flagHost),
+			HostPolicy: autocert.HostWhitelist(hosts...),
 		}
 		if *flagEmail != "" {
 			m.Email = *flagEmail
